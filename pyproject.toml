@@ -1,0 +1,54 @@
+
+[tool.poetry]
+package-mode = false
+name = "htt-models"
+version = "0.0.0"
+authors = ["Popis <piotrpopis98@icloud.com>"]
+description = "Package for training models and processing images"
+readme = "README.md"
+
+
+[tool.poetry.dependencies]
+python = "^3.10"
+numpy = "^2.1.1"
+scikit-learn = "^1.5.2"
+pandas = "^2.2.3"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "*"
+
+[build-system]
+requires = ["poetry-core", "poetry-dynamic-versioning"]
+build-backend = "poetry_dynamic_versioning.backend"
+
+[tool.poetry-dynamic-versioning]
+enable = true
+pattern = '^v?((?P<epoch>\d+)!)?(?P<base>\d+(\.\d+)*)'
+
+[tool.pytest.ini_options]
+addopts = "--cov --cov-report xml --cov-report html --cov-report term-missing --junit-xml py-junit.xml"
+
+[tool.coverage.run]
+source = ["src"]
+
+[tool.black]
+line-length = 88
+
+[tool.flake8]
+max-line-length = 98
+per-file-ignores = "__init__.py:F401"
+ignore = ["E501", "E203"]
+
+[tool.isort]
+atomic = true
+profile = "black"
+line_length = 88
+skip_gitignore = true
+known_first_party = ["black"]
+
+[tool.bandit]
+skips = ["B403", "B301"]
+
+[[tool.poetry.source]]
+name = "PyPI"
+priority = "primary"
