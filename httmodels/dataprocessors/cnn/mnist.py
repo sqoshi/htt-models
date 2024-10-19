@@ -2,6 +2,8 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
+from httmodels.config import settings
+
 
 class MNISTDataProcessor:
     def load(self, train_source, test_source):
@@ -26,5 +28,8 @@ class MNISTDataProcessor:
     def create_dataloader(self, x_data, y_data, batch_size=64, shuffle=True):
         dataset = TensorDataset(x_data, y_data)
         return DataLoader(
-            dataset, batch_size=batch_size, shuffle=shuffle, num_workers=2
+            dataset,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            num_workers=settings().workers,
         )

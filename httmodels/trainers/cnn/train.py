@@ -5,6 +5,8 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 
+from httmodels.config import settings
+
 
 class CNNTrainer:
     def __init__(self, input_shape, device, num_classes=25):
@@ -36,7 +38,9 @@ class CNNTrainer:
         y_train = torch.tensor(y_train, dtype=torch.long).to(self.device)
 
         dataset = TensorDataset(x_train, y_train)
-        train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+        train_loader = DataLoader(
+            dataset, batch_size=batch_size, shuffle=True, num_workers=settings().workers
+        )
 
         for epoch in range(epochs):
             running_loss = 0.0
@@ -64,7 +68,9 @@ class CNNTrainer:
         y_test = torch.tensor(y_test, dtype=torch.long).to(self.device)
 
         dataset = TensorDataset(x_test, y_test)
-        test_loader = DataLoader(dataset, batch_size=64, shuffle=False, num_workers=2)
+        test_loader = DataLoader(
+            dataset, batch_size=64, shuffle=False, num_workers=settings().workers
+        )
 
         correct = 0
         total = 0
@@ -88,6 +94,6 @@ class CNNTrainer:
 
     def load(self, filepath: str):
         """Load a model from a file."""
-        self.model.load_state_dict(torch.load(filepath), weights_only=True)
+        self.model.load_state_dict(torch.load(filepath))
         self.model.to(self.device)
         logging.debug(f"Model loaded from {filepath}")

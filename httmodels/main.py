@@ -31,15 +31,15 @@ import logging
 
 import torch
 
+from httmodels.config import settings
 from httmodels.dataprocessors.cnn.mnist import MNISTDataProcessor
 from httmodels.trainers.cnn.train import CNNTrainer
 from httmodels.trainers.context import TrainingContext
 
 
-def main():
-    # Set up device (GPU/CPU)
+def main_cnn():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+    logging.debug("device: %s", device)
     processor = MNISTDataProcessor()
 
     train_data, test_data = processor.load(
@@ -50,11 +50,7 @@ def main():
     train_loader = processor.create_dataloader(*train_data, batch_size=64)
     test_loader = processor.create_dataloader(*test_data, batch_size=64, shuffle=False)
 
-    input_shape = (1, 28, 28)
-    num_classes = 25
-    trainer = CNNTrainer(
-        input_shape=input_shape, device=device, num_classes=num_classes
-    )
+    trainer = CNNTrainer(input_shape=(1, 28, 28), device=device, num_classes=25)
 
     context = TrainingContext(trainer)
 
@@ -65,10 +61,10 @@ def main():
     for images, labels in test_loader:
         accuracy = context.evaluate(images.numpy(), labels.numpy())
 
-    print(f"Final accuracy on test set: {accuracy:.2f}%")
+    logging.info(f"Final accuracy on test set: {accuracy:.2f}%")
 
-    context.save("cnn_mnist_model.pth")
-    context.load("cnn_mnist_model.pth")
+    context.save("cnn.pth")
+    context.load("cnn.pth")
 
 
 if __name__ == "__main__":
@@ -77,4 +73,5 @@ if __name__ == "__main__":
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         handlers=[logging.StreamHandler()],
     )
-    main()
+    logging.debug(settings().model_dump())
+    main_cnn()

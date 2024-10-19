@@ -1,11 +1,15 @@
+import os
+
 import numpy as np
 
+from httmodels.config import settings
 from httmodels.trainers.abstract import Trainer
 
 
 class TrainingContext:
     def __init__(self, trainer: Trainer):
         self.trainer = trainer
+        self.models_path = settings().models_path
 
     def set_trainer(self, trainer: Trainer):
         self.trainer = trainer
@@ -17,7 +21,7 @@ class TrainingContext:
         return self.trainer.evaluate(x_test, y_test)
 
     def save(self, filepath: str):
-        self.trainer.save(filepath)
+        self.trainer.save(os.path.join(self.models_path, filepath))
 
     def load(self, filepath: str):
-        self.trainer.load(filepath)
+        self.trainer.load(os.path.join(self.models_path, filepath))

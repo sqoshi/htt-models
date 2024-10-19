@@ -3,10 +3,13 @@ VERSION=$(or $(shell git describe --tags --always), latest)
 ARTIFACTORY ?= ""
 
 .ONESHELL:
-.PHONY: run fmt prepare help
+.PHONY: run fmt train help
 
 fmt: ## Format the code using pre-commit
 	pre-commit run --all
+
+train: ## Start training the model
+	poetry run python3 httmodels/main.py
 
 help: ## Print help with command name and comment for each target
 	@echo "Available targets:"
