@@ -9,7 +9,7 @@ from httmodels.trainers.abstract import Trainer
 
 class RandomForestTrainer(Trainer):
     def __init__(self):
-        self.model = RandomForestClassifier()
+        self.model = RandomForestClassifier(verbose=1, warm_start=True)
 
     def fit(self, x_train, y_train):
         self.model.fit(x_train, y_train)

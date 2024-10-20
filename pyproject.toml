@@ -17,6 +17,7 @@ torch = "^2.5.0"
 opencv-python = "^4.10.0.84"
 pydantic = "^2.9.2"
 pydantic-settings = "^2.6.0"
+mediapipe = "0.10.14"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"

@@ -89,11 +89,11 @@ class CNNTrainer:
 
     def save(self, filepath: str):
         """Save the model to a file."""
-        torch.save(self.model.state_dict(), filepath)
+        torch.save(self.model, filepath)
         logging.debug(f"Model saved to {filepath}")
 
     def load(self, filepath: str):
         """Load a model from a file."""
-        self.model.load_state_dict(torch.load(filepath))
+        self.model = torch.load(filepath)
         self.model.to(self.device)
         logging.debug(f"Model loaded from {filepath}")

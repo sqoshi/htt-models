@@ -28,15 +28,17 @@ class ASLHandsProcessor(DataProcessor):
         result = {"data": [], "labels": []}
         valid_count = 0
 
-        for img_path in img_paths:
+        for i, img_path in enumerate(img_paths):
             data_aux, valid = self.process_image(img_path)
             if valid:
                 label = img_path.split(os.path.sep)[-2]
                 result["data"].append(data_aux)
                 result["labels"].append(label)
                 valid_count += 1
-
+            if i % 50 == 0:
+                logging.debug(f"Processed image {i + 1} out of {len(img_paths)}.")
         logging.info(f"{valid_count} out of {len(img_paths)} images were valid.")
+        self.save(result, "data/asl_hands.pickle")
         return result
 
     def process_image(self, img_path):

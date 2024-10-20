@@ -1,40 +1,48 @@
-# import pickle
-
-# import numpy as np
-# from sklearn.model_selection import train_test_split
-
-# from httmodels.trainers.context import TrainingContext
-# from httmodels.trainers.randomforest.train import RandomForestTrainer
-
-
-# def main():
-#     with open("/home/piotr/Documents/htt/pickles/data.pickle", "rb") as f:
-#         data_dict = pickle.load(f)
-#         data = np.asarray(data_dict["data"])
-#         labels = np.asarray(data_dict["labels"])
-
-#         x_train, x_test, y_train, y_test = train_test_split(
-#             data, labels, test_size=0.2, shuffle=True, stratify=labels
-#         )
-#         rf_trainer = RandomForestTrainer()
-#         context = TrainingContext(rf_trainer)
-
-#         context.fit(x_train, y_train)
-#         context.evaluate(x_test, y_test)
-#         context.save_model("random_forest_model.pickle")
-
-
-# main()
-
-
 import logging
 
+import numpy as np
 import torch
 
 from httmodels.config import settings
+from httmodels.dataprocessors.cnn.aslhands import ASLHandsBoxesSelectedProcessor
 from httmodels.dataprocessors.cnn.mnist import MNISTDataProcessor
+from httmodels.dataprocessors.randomforest.aslhands import ASLHandsProcessor
+from httmodels.trainers.adabooster.train import AdaBoostTrainer
 from httmodels.trainers.cnn.train import CNNTrainer
 from httmodels.trainers.context import TrainingContext
+from httmodels.trainers.randomforest.train import RandomForestTrainer
+
+
+def main_cnnasl():
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    logging.debug("device: %s", device)
+    processor = ASLHandsBoxesSelectedProcessor()
+
+    img_paths = processor.load("/home/piotr/Documents/htt/images")
+    data = processor.preprocess(img_paths)
+
+    x_train, x_test, y_train, y_test = processor.split(data["data"], data["labels"])
+
+    label_to_int = {label: idx for idx, label in enumerate(sorted(set(y_train)))}
+    y_train = [label_to_int[label] for label in y_train]
+    y_test = [label_to_int[label] for label in y_test]
+
+    x_train = np.array(x_train).reshape(-1, 1, 28, 28)
+    x_test = np.array(x_test).reshape(-1, 1, 28, 28)
+
+    trainer = CNNTrainer(
+        input_shape=(1, 28, 28), device=device, num_classes=len(label_to_int)
+    )
+
+    context = TrainingContext(trainer)
+
+    context.fit(x_train, np.array(y_train))
+
+    accuracy = context.evaluate(x_test, np.array(y_test))
+    logging.info(f"Final accuracy on test set: {accuracy:.2f}%")
+
+    context.save("cnnasl.pth")
+    context.load("cnnasl.pth")
 
 
 def main_cnn():
@@ -60,11 +68,37 @@ def main_cnn():
     accuracy = 0
     for images, labels in test_loader:
         accuracy = context.evaluate(images.numpy(), labels.numpy())
-
     logging.info(f"Final accuracy on test set: {accuracy:.2f}%")
-
     context.save("cnn.pth")
     context.load("cnn.pth")
+
+
+def main_adaboost():
+    processor = ASLHandsProcessor()
+    img_paths = processor.load("/home/piotr/Documents/htt/images")
+    data = processor.preprocess(img_paths)
+    x_train, x_test, y_train, y_test = processor.split(data["data"], data["labels"])
+    trainer = AdaBoostTrainer()
+    context = TrainingContext(trainer)
+    context.fit(x_train, y_train)
+    accuracy = context.evaluate(x_test, y_test)
+    logging.info(f"Accuracy after reloading model: {accuracy * 100:.2f}%")
+    context.save("ada.pickle")
+    context.load("ada.pickle")
+
+
+def main_rf():
+    processor = ASLHandsProcessor()
+    img_paths = processor.load("/home/piotr/Documents/htt/images")
+    data = processor.preprocess(img_paths)
+    x_train, x_test, y_train, y_test = processor.split(data["data"], data["labels"])
+    trainer = RandomForestTrainer()
+    context = TrainingContext(trainer)
+    context.fit(x_train, y_train)
+    accuracy = context.evaluate(x_test, y_test)
+    logging.info(f"Final accuracy on test set: {accuracy * 100:.2f}%")
+    context.save("rf.pickle")
+    context.load("rf.pickle")
 
 
 if __name__ == "__main__":
@@ -74,4 +108,4 @@ if __name__ == "__main__":
         handlers=[logging.StreamHandler()],
     )
     logging.debug(settings().model_dump())
-    main_cnn()
+    main_cnnasl()

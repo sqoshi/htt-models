@@ -25,7 +25,9 @@ class MNISTDataProcessor:
 
         return (train_images, train_labels), (test_images, test_labels)
 
-    def create_dataloader(self, x_data, y_data, batch_size=64, shuffle=True):
+    def create_dataloader(
+        self, x_data, y_data, batch_size=64, shuffle=True
+    ) -> DataLoader:
         dataset = TensorDataset(x_data, y_data)
         return DataLoader(
             dataset,

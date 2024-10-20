@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     workers: int = Field(
-        default_factory=lambda: os.cpu_count() or 4,
+        default_factory=lambda: os.cpu_count() // 2 or 4,
         description="Number of workers for data loading",
     )
     models_path: str = Field("models", description="Path to save models")
