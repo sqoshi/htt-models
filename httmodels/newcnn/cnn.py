@@ -1,4 +1,5 @@
 import copy
+from datetime import datetime
 import os
 import time
 
@@ -137,52 +138,55 @@ def train_model(
     criterion,
     optimizer,
     scheduler,
-    num_epochs=25,
+    num_epochs=10,
     device="cuda",
 ):
     since = time.time()
-
+    total_train_batches = len(train_loader)
+    total_val_batches = len(val_loader)
+    
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
-
     for epoch in range(num_epochs):
         print(f"Epoch {epoch + 1}/{num_epochs}")
         print("-" * 10)
-
+        start = time.time()
         # Each epoch has a training and validation phase
         for phase in ["train", "val"]:
             if phase == "train":
                 model.train()  # Set model to training mode
                 dataloader = train_loader
+                total_batches = total_train_batches
             else:
                 model.eval()  # Set model to evaluate mode
                 dataloader = val_loader
+                total_batches = total_val_batches
 
             running_loss = 0.0
             running_corrects = 0
 
             # Iterate over data
-            for inputs, labels in dataloader:
+            for batch_idx, (inputs, labels) in enumerate(dataloader):
                 inputs = inputs.to(device)
                 labels = labels.to(device)
 
-                # Zero the parameter gradients
                 optimizer.zero_grad()
 
-                # Forward pass
                 with torch.set_grad_enabled(phase == "train"):
                     outputs = model(inputs)
                     _, preds = torch.max(outputs, 1)
                     loss = criterion(outputs, labels)
 
-                    # Backward + optimize only in train phase
                     if phase == "train":
                         loss.backward()
                         optimizer.step()
 
-                # Statistics
                 running_loss += loss.item() * inputs.size(0)
                 running_corrects += torch.sum(preds == labels.data)
+               
+                percent_complete = (batch_idx + 1) / total_batches * 100
+                if percent_complete % 10 == 0:
+                    print(f"Batch {batch_idx + 1}/{total_batches} ({percent_complete:.2f}%) processed", end="\r")
 
             if phase == "train":
                 scheduler.step()
@@ -191,14 +195,13 @@ def train_model(
             epoch_acc = running_corrects.double() / (len(dataloader.dataset))
 
             print(f"{phase.capitalize()} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}")
-
             # Deep copy the model if it performs better on validation set
             if phase == "val" and epoch_acc > best_acc:
                 best_acc = epoch_acc
                 best_model_wts = copy.deepcopy(model.state_dict())
-            if phase == "val" and epoch_acc > best_acc:
-                best_acc = epoch_acc
-                best_model_wts = copy.deepcopy(model.state_dict())
+            
+            te = time.time() - start
+            print(f"Epoch completed complete in {te // 60:.0f}m {te % 60:.0f}s")
 
         print()
 
@@ -243,12 +246,13 @@ def evaluate_model(model, test_loader, criterion, device="cuda"):
 
 # Main function to run the entire pipeline
 def main():
-    root_dir = "/home/piotr/Documents/htt/images224224"
+    root_dir = "/mnt/d/Studies/images224224"
 
-    batch_size = 32
-    num_epochs = 25
+    batch_size = 128
+    num_epochs = 5
     learning_rate = 0.001
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    print(f"looking for images in {root_dir}")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
     # Create DataLoaders
@@ -276,7 +280,6 @@ def main():
         num_epochs=num_epochs,
         device=device,
     )
-
     # Save the trained model
     torch.save(trained_model.state_dict(), "resnet_asl_cnn_model.pth")
     print("ResNet18 ASL model saved as resnet_asl_cnn_model.pth")

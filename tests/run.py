@@ -1,8 +1,11 @@
+from PIL import Image
 import uuid
-
 import cv2
 import mediapipe as mp
 import torch
+from torchvision import transforms
+
+from httmodels.newcnn.cnn import initialize_resnet_model
 
 
 class CNNHandService:
@@ -14,21 +17,25 @@ class CNNHandService:
             static_image_mode=False, max_num_hands=1, min_detection_confidence=0.5
         )
 
-    def preprocess_image(self, hand_img):
-        """Preprocess the image by resizing, converting to grayscale, and normalizing."""
-        hand_img_resized = cv2.resize(hand_img, (28, 28))  # Resize to 28x28
-        hand_img_gray = cv2.cvtColor(hand_img_resized, cv2.COLOR_BGR2GRAY)  # Grayscale
-        hand_img_normalized = hand_img_gray / 255.0  # Normalize to [0, 1]
-
-        cv2.imwrite(f"./trash/{uuid.uuid4()}.png", hand_img_resized)
-        # Convert to a tensor and add batch dimension (1x1x28x28)
-        hand_img_tensor = (
-            torch.tensor(hand_img_normalized, dtype=torch.float32)
-            .unsqueeze(0)  # Batch dimension
-            .unsqueeze(0)  # Channel dimension (grayscale)
+        # Use the same transformations that were applied during training
+        self.preprocess_transform = transforms.Compose(
+            [
+                transforms.Resize((224, 224)),  # Resize to 224x224 for ResNet18
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    [0.485, 0.456, 0.406],
+                    [0.229, 0.224, 0.225],
+                ),
+            ]
         )
 
-        return hand_img_tensor.to(self.device)
+    def preprocess_image(self, hand_img):
+        """Preprocess the image for ResNet18 by resizing and normalizing."""
+        hand_img_rgb = cv2.cvtColor(hand_img, cv2.COLOR_BGR2RGB)  # Convert to RGB
+        pil_image = Image.fromarray(hand_img_rgb)  # Convert to PIL image
+        preprocessed_image = self.preprocess_transform(pil_image)  # Apply transformations
+        preprocessed_image = preprocessed_image.unsqueeze(0)  # Add batch dimension
+        return preprocessed_image.to(self.device)
 
     def detect_hand(self, frame, margin_percentage=0.3):
         """Detect the hand in the frame and return the cropped hand region and bounding box."""
@@ -91,11 +98,9 @@ class CNNHandService:
 
     def letter(self, number: int):
         """Map the prediction number to a letter."""
-        if not number:
-            return ""
-        if 1 <= number <= 9:
-            return chr(number + ord("A") + 1)
-        return chr(number + ord("A") - 1)
+        if 0 <= number <= 25:
+            return chr(number + ord("A"))
+        return ""
 
 
 def run_realtime_inference(model_service):
@@ -151,10 +156,10 @@ def run_realtime_inference(model_service):
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Load the new cnn_v2 model
-    model = torch.load("../models/cnn_v2.pth", map_location=device)
+    model = initialize_resnet_model(num_classes=26)
+    model.load_state_dict(torch.load("resnet_asl_cnn_model.pth", map_location=device))
 
-    # Create the CNNHandService with the new model
+    # Create the CNNHandService with the ResNet18 model
     model_service = CNNHandService(model=model, device=device)
 
     # Run real-time inference
