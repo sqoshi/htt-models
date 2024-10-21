@@ -49,28 +49,19 @@ def main_cnn():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logging.debug("device: %s", device)
     processor = MNISTDataProcessor()
-
     train_data, test_data = processor.load(
         "data/mnist/sign_mnist_train/sign_mnist_train.csv",
         "data/mnist/sign_mnist_test/sign_mnist_test.csv",
+        apply_augmentation=True,  # Apply augmentation on training data
     )
-
     train_loader = processor.create_dataloader(*train_data, batch_size=64)
     test_loader = processor.create_dataloader(*test_data, batch_size=64, shuffle=False)
-
     trainer = CNNTrainer(input_shape=(1, 28, 28), device=device, num_classes=25)
-
-    context = TrainingContext(trainer)
-
-    for images, labels in train_loader:
-        context.fit(images.numpy(), labels.numpy())
-
-    accuracy = 0
-    for images, labels in test_loader:
-        accuracy = context.evaluate(images.numpy(), labels.numpy())
+    trainer.fit(train_loader, epochs=10)
+    accuracy = trainer.evaluate(test_loader)
     logging.info(f"Final accuracy on test set: {accuracy:.2f}%")
-    context.save("cnn.pth")
-    context.load("cnn.pth")
+    trainer.save("cnn_v2.pth")
+    trainer.load("cnn_v2.pth")
 
 
 def main_adaboost():
@@ -108,4 +99,4 @@ if __name__ == "__main__":
         handlers=[logging.StreamHandler()],
     )
     logging.debug(settings().model_dump())
-    main_cnnasl()
+    main_cnn()

@@ -3,9 +3,6 @@ import logging
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, TensorDataset
-
-from httmodels.config import settings
 
 
 class CNNTrainer:
@@ -31,16 +28,8 @@ class CNNTrainer:
             nn.Linear(128, num_classes),
         )
 
-    def fit(self, x_train, y_train, epochs=10, batch_size=64):
+    def fit(self, train_loader, epochs=10):
         self.model.train()
-
-        x_train = torch.tensor(x_train, dtype=torch.float32).to(self.device)
-        y_train = torch.tensor(y_train, dtype=torch.long).to(self.device)
-
-        dataset = TensorDataset(x_train, y_train)
-        train_loader = DataLoader(
-            dataset, batch_size=batch_size, shuffle=True, num_workers=settings().workers
-        )
 
         for epoch in range(epochs):
             running_loss = 0.0
@@ -61,16 +50,8 @@ class CNNTrainer:
                 f"Epoch {epoch + 1}/{epochs}, Loss: {running_loss / len(train_loader):.4f}"
             )
 
-    def evaluate(self, x_test, y_test):
+    def evaluate(self, test_loader):
         self.model.eval()
-
-        x_test = torch.tensor(x_test, dtype=torch.float32).to(self.device)
-        y_test = torch.tensor(y_test, dtype=torch.long).to(self.device)
-
-        dataset = TensorDataset(x_test, y_test)
-        test_loader = DataLoader(
-            dataset, batch_size=64, shuffle=False, num_workers=settings().workers
-        )
 
         correct = 0
         total = 0
@@ -88,12 +69,10 @@ class CNNTrainer:
         return accuracy
 
     def save(self, filepath: str):
-        """Save the model to a file."""
         torch.save(self.model, filepath)
         logging.debug(f"Model saved to {filepath}")
 
     def load(self, filepath: str):
-        """Load a model from a file."""
         self.model = torch.load(filepath)
         self.model.to(self.device)
         logging.debug(f"Model loaded from {filepath}")
