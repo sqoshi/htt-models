@@ -1,8 +1,15 @@
+import os
+import sys
 import uuid
 
 import cv2
 import mediapipe as mp
 import torch
+
+from httmodels.models.lenet import LeNet
+
+# Add parent directory to path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 class CNNHandService:
@@ -151,10 +158,17 @@ def run_realtime_inference(model_service):
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Load the new cnn_v2 model
-    model = torch.load("../models/cnn_v2.pth", map_location=device)
+    # Load the trained model
+    model_path = "../models/cnn_v2.pth"
+    print(f"Loading model from {model_path}")
 
-    # Create the CNNHandService with the new model
+    # Create a LeNet model instance
+    model = LeNet(input_shape=(1, 28, 28), num_classes=26)
+    # Load the state dict
+    model.load_state_dict(torch.load(model_path, map_location=device))
+    model.eval()
+
+    # Create the CNNHandService with the loaded model
     model_service = CNNHandService(model=model, device=device)
 
     # Run real-time inference

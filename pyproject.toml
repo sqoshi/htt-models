@@ -2,7 +2,7 @@
 [tool.poetry]
 package-mode = true
 name = "httmodels"
-version = "0.0.0"
+version = "0.0.0.post8.dev0+9874b54"
 authors = ["Popis <piotrpopis98@icloud.com>"]
 description = "Package for training models and processing images"
 readme = "README.md"
@@ -10,15 +10,16 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-numpy = "^2.1.1"
-scikit-learn = "^1.5.2"
-pandas = "^2.2.3"
-torch = "^2.5.0"
-opencv-python = "^4.10.0.84"
-pydantic = "^2.9.2"
-pydantic-settings = "^2.6.0"
+numpy = "2.1.1"
+scikit-learn = "^1.7.0"
+pandas = "^2.3.0"
+torch = "~2.5.1"
+opencv-python = "^4.11.0.86"
+pydantic = "^2.11.5"
+pydantic-settings = "^2.9.1"
 mediapipe = "0.10.14"
-torchvision = "^0.20.0"
+torchvision = "~0.20.1"
+torchviz = "^0.0.2"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"
@@ -28,7 +29,7 @@ requires = ["poetry-core", "poetry-dynamic-versioning"]
 build-backend = "poetry_dynamic_versioning.backend"
 
 [tool.poetry-dynamic-versioning]
-enable = true
+enable = false
 pattern = '^v?((?P<epoch>\d+)!)?(?P<base>\d+(\.\d+)*)'
 
 [tool.pytest.ini_options]
@@ -54,7 +55,3 @@ known_first_party = ["black"]
 
 [tool.bandit]
 skips = ["B403", "B301"]
-
-[[tool.poetry.source]]
-name = "PyPI"
-priority = "primary"
