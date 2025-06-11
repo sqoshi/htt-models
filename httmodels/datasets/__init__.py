@@ -1,5 +1,5 @@
 """Datasets package initialization."""
 
-from httmodels.datasets.mnist_asl import ASLHandsDataset, MnistDataset
+from httmodels.datasets.datasets import ASLDataset, MNISTDataset
 
-__all__ = ["MnistDataset", "ASLHandsDataset"]
+__all__ = ["MNISTDataset", "ASLDataset"]

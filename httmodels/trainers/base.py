@@ -4,7 +4,6 @@ import logging
 import os
 import pickle
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -119,19 +118,14 @@ class DLTrainer(BaseTrainer):
         epochs = kwargs.get("epochs", 10)
         batch_size = kwargs.get("batch_size", 32)
 
-        # Handle both tensor and numpy inputs
-        if not torch.is_tensor(X_train):
-            X_train = torch.tensor(X_train, dtype=torch.float32)
-        if not torch.is_tensor(y_train):
-            y_train = torch.tensor(y_train, dtype=torch.long)
+        # Import dataloader function here to avoid circular imports
+        from httmodels.dataloaders.loaders import get_dataloader
 
-        X_train = X_train.to(self.device)
-        y_train = y_train.to(self.device)
-
-        # Create DataLoader for batching
-        dataset = torch.utils.data.TensorDataset(X_train, y_train)
-        train_loader = torch.utils.data.DataLoader(
-            dataset, batch_size=batch_size, shuffle=True
+        # Create DataLoader from training data
+        train_loader = get_dataloader(
+            dataset=(X_train, y_train),
+            batch_size=batch_size,
+            shuffle=True,
         )
 
         self.model.train()
@@ -140,6 +134,11 @@ class DLTrainer(BaseTrainer):
             running_corrects = 0
 
             for images, labels in train_loader:
+                # Move data to device
+                images = images.to(self.device)
+                labels = labels.to(self.device)
+
+                # Forward pass and optimization
                 self.optimizer.zero_grad()
                 outputs = self.model(images)
                 loss = self.criterion(outputs, labels)
@@ -155,7 +154,7 @@ class DLTrainer(BaseTrainer):
             epoch_loss = running_loss / len(train_loader.dataset)
             epoch_acc = running_corrects.double() / len(train_loader.dataset)
             logging.info(
-                f"Epoch {epoch+1}/{epochs} - "
+                f"Epoch {epoch + 1}/{epochs} - "
                 f"Loss: {epoch_loss:.4f} - Acc: {epoch_acc:.4f}"
             )
 
@@ -163,34 +162,44 @@ class DLTrainer(BaseTrainer):
 
     def predict(self, X):
         """Make predictions with the trained PyTorch model."""
-        self.model.eval()
+        # Import dataloader function here to avoid circular imports
+        from httmodels.dataloaders.loaders import get_dataloader
 
-        # Handle numpy input
+        # Create a dummy dataset with only X
         if not torch.is_tensor(X):
             X = torch.tensor(X, dtype=torch.float32)
 
-        X = X.to(self.device)
+        # Use a DataLoader for batching (with fake labels)
+        dummy_y = torch.zeros(X.shape[0], dtype=torch.long)
+        test_loader = get_dataloader(
+            dataset=(X, dummy_y),
+            batch_size=32,
+            shuffle=False,
+        )
+
+        self.model.eval()
+        all_preds = []
 
         with torch.no_grad():
-            outputs = self.model(X)
-            _, preds = torch.max(outputs, 1)
+            for images, _ in test_loader:
+                images = images.to(self.device)
+                outputs = self.model(images)
+                _, preds = torch.max(outputs, 1)
+                all_preds.append(preds.cpu().numpy())
 
-        return preds.cpu().numpy()
+        return np.concatenate(all_preds)
 
     def evaluate(self, X_test, y_test):
         """Evaluate the PyTorch model on the test data."""
-        # Handle both tensor and numpy inputs
-        if not torch.is_tensor(X_test):
-            X_test = torch.tensor(X_test, dtype=torch.float32)
-        if not torch.is_tensor(y_test):
-            y_test = torch.tensor(y_test, dtype=torch.long)
+        # Import dataloader function here to avoid circular imports
+        from httmodels.dataloaders.loaders import get_dataloader
 
-        X_test = X_test.to(self.device)
-        y_test = y_test.to(self.device)
-
-        # Create DataLoader for batching
-        dataset = torch.utils.data.TensorDataset(X_test, y_test)
-        test_loader = torch.utils.data.DataLoader(dataset, batch_size=32, shuffle=False)
+        # Create DataLoader from test data
+        test_loader = get_dataloader(
+            dataset=(X_test, y_test),
+            batch_size=32,
+            shuffle=False,
+        )
 
         self.model.eval()
         running_loss = 0.0
@@ -198,6 +207,11 @@ class DLTrainer(BaseTrainer):
 
         with torch.no_grad():
             for images, labels in test_loader:
+                # Move data to device
+                images = images.to(self.device)
+                labels = labels.to(self.device)
+
+                # Forward pass
                 outputs = self.model(images)
                 loss = self.criterion(outputs, labels)
 

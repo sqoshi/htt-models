@@ -91,20 +91,95 @@ To get a local copy up and running, follow these steps:
 
 ## Usage
 
+### Command-Line Interface
+
 The package provides a simple command-line interface for training and evaluating models:
 
 ```sh
 # Train all models on all datasets
-python run.py --model all --dataset all
+python -m httmodels.main --model all --dataset all
 
 # Train specific model on specific dataset
-python run.py --model lenet --dataset mnist --epochs 10 --batch-size 64
+python -m httmodels.main --model lenet --dataset mnist --epochs 10 --batch_size 64
 
 # Train ResNet on ASL dataset with custom data path
-python run.py --model resnet --dataset asl --data-path /path/to/asl/dataset --epochs 15
+python -m httmodels.main --model resnet --dataset asl --data_path /path/to/asl/dataset --epochs 15
 
 # Train Random Forest on ASL dataset
-python run.py --model rf --dataset asl --n-estimators 100
+python -m httmodels.main --model rf --dataset asl
+```
+
+### Training Options
+
+The main script supports the following parameters:
+
+- `--model`: Model to train (lenet, resnet, rf, adaboost, all)
+- `--dataset`: Dataset to use (mnist, asl, all)
+- `--data_path`: Path to the dataset directory
+- `--epochs`: Number of epochs for neural network training
+- `--batch_size`: Batch size for neural network training
+
+# Run only the trainer examples
+python run_examples.py --example trainers
+
+# Specify a custom data path
+python run_examples.py --data-path /path/to/datasets
+```
+
+### Using the Dataloader API
+
+The package provides a streamlined dataloader API for working with datasets:
+
+```python
+from httmodels.dataloaders import (
+    get_dataloader,
+    get_mnist_transforms,
+    create_train_val_dataloaders
+)
+from httmodels.preprocessing.mnist import MNISTProcessor
+
+# Load dataset through processor
+processor = MNISTProcessor(apply_augmentation=True)
+data = processor.load()
+
+# Get training and testing datasets
+train_dataset = data["train"]
+test_dataset = data["test"]
+
+# Apply transforms
+train_dataset.transform = get_mnist_transforms(augmentation=True)
+test_dataset.transform = get_mnist_transforms(augmentation=False)
+
+# Create dataloaders
+train_loader = get_dataloader(train_dataset, batch_size=64, shuffle=True)
+test_loader = get_dataloader(test_dataset, batch_size=64, shuffle=False)
+
+# Or create train/val split from a single dataset
+train_loader, val_loader = create_train_val_dataloaders(
+    dataset=train_dataset,
+    batch_size=64,
+    train_ratio=0.8
+)
+```
+
+### Using the Training API
+
+Models can be trained using the trainer and context classes:
+
+```python
+from httmodels.trainers.lenet import LeNetTrainer
+from httmodels.trainers.context import TrainingContext
+
+# Initialize trainer
+trainer = LeNetTrainer(input_shape=(1, 28, 28), num_classes=10)
+
+# Train with context
+context = TrainingContext(trainer)
+context.fit(x_train, y_train, epochs=10, batch_size=64)
+accuracy = context.evaluate(x_test, y_test)
+
+# Save model
+context.save("lenet_mnist.pth")
 ```
 
 ## Project Structure
@@ -130,11 +205,13 @@ httmodels/
 │   ├── mnist.py               # MNIST dataset preprocessor
 │   └── aslhands.py            # ASL hands dataset preprocessor
 ├── datasets/                  # Dataset classes
-│   ├── mnist_asl.py           # MNIST and ASL dataset classes
-│   └── ...
+│   └── datasets.py            # Unified MNIST and ASL dataset classes
 ├── dataloaders/               # Data loaders
-│   ├── loaders.py             # PyTorch and ML data loaders
-│   └── ...
+│   ├── loaders.py             # Dataloader utilities and transforms
+│   └── landmarkstransformers.py # MediaPipe hand landmark extractors
+├── examples/                  # Example implementations
+│   ├── dataloaders_example.py # Examples using the dataloader API
+│   └── updated_trainers_example.py # Examples using the updated trainers
 └── utils/                     # Utility functions
     ├── common.py              # Common utility functions
     └── ...
@@ -146,6 +223,7 @@ httmodels/
 - [x] CNN models (LeNet, ResNet)
 - [x] ML models (Random Forest, AdaBoost)
 - [x] Data preprocessing for MNIST and ASL
+- [x] Unified dataloaders and transforms
 - [ ] Add support for more datasets
 - [ ] Implement more model architectures
 - [ ] Add model serving capabilities

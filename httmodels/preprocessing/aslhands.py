@@ -16,15 +16,23 @@ from httmodels.preprocessing.base import ImageProcessor
 class ASLHandsProcessor(ImageProcessor):
     """Processor for ASL hands dataset."""
 
-    def __init__(self, image_size=(28, 28), max_hands=1, min_detection_confidence=0.3):
+    def __init__(
+        self,
+        image_size=(28, 28),
+        max_hands=1,
+        min_detection_confidence=0.3,
+        apply_augmentation=False,
+    ):
         """Initialize ASL hands processor.
 
         Args:
             image_size: Size to resize images to (height, width)
             max_hands: Maximum number of hands to detect
             min_detection_confidence: Minimum confidence for hand detection
+            apply_augmentation: Whether to apply data augmentation
         """
         self.image_size = image_size
+        self.apply_augmentation = apply_augmentation
         self.hands = Hands(
             max_num_hands=max_hands,
             static_image_mode=True,
@@ -117,14 +125,41 @@ class ASLHandsProcessor(ImageProcessor):
             if valid:
                 # Extract label from directory name
                 label = img_path.split(os.path.sep)[-2]
+
+                # Original image
                 result["data"].append(processed_img)
                 result["labels"].append(label)
                 valid_count += 1
+
+                # Apply augmentation if enabled
+                if self.apply_augmentation:
+                    # Horizontal flip
+                    flipped = cv2.flip(processed_img, 1)
+                    result["data"].append(flipped)
+                    result["labels"].append(label)
+
+                    # Rotation
+                    rows, cols = processed_img.shape
+                    for angle in [5, -5, 10, -10]:
+                        M = cv2.getRotationMatrix2D((cols / 2, rows / 2), angle, 1)
+                        rotated = cv2.warpAffine(processed_img, M, (cols, rows))
+                        result["data"].append(rotated)
+                        result["labels"].append(label)
+
+                    # Add small random noise
+                    noisy = processed_img.copy()
+                    noisy = noisy.astype(np.float32)
+                    noisy += np.random.normal(0, 5, noisy.shape).astype(np.float32)
+                    noisy = np.clip(noisy, 0, 255).astype(np.uint8)
+                    result["data"].append(noisy)
+                    result["labels"].append(label)
 
             if i % 50 == 0:
                 logging.info(f"Processed {i + 1}/{len(img_paths)} images")
 
         logging.info(f"Successfully processed {valid_count}/{len(img_paths)} images")
+        if self.apply_augmentation:
+            logging.info(f"After augmentation: {len(result['data'])} total samples")
         return result
 
     def save(self, data, destination):

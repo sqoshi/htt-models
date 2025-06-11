@@ -3,7 +3,6 @@
 import logging
 
 import numpy as np
-import torch
 from sklearn.model_selection import train_test_split
 from torchvision import datasets, transforms
 
@@ -13,18 +12,35 @@ from httmodels.preprocessing.base import ImageProcessor
 class MNISTProcessor(ImageProcessor):
     """Processor for MNIST dataset."""
 
-    def __init__(self, root="./data", download=True):
+    def __init__(self, root="./data", download=True, apply_augmentation=False):
         """Initialize MNIST processor.
 
         Args:
             root: Root directory for data
             download: Whether to download the dataset if not present
+            apply_augmentation: Whether to apply data augmentation
         """
         self.root = root
         self.download = download
-        self.transform = transforms.Compose(
-            [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
-        )
+        self.apply_augmentation = apply_augmentation
+
+        # Base transform
+        base_transform = [
+            transforms.ToTensor(),
+            transforms.Normalize((0.1307,), (0.3081,)),
+        ]
+
+        # Augmentation transforms
+        if apply_augmentation:
+            self.transform = transforms.Compose(
+                [
+                    transforms.RandomRotation(10),
+                    transforms.RandomAffine(degrees=0, translate=(0.1, 0.1)),
+                    *base_transform,
+                ]
+            )
+        else:
+            self.transform = transforms.Compose(base_transform)
 
     def load(self, source=None):
         """Load MNIST dataset.

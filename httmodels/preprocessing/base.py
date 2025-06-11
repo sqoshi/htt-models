@@ -1,7 +1,7 @@
 """Base data processing interfaces for all data processors."""
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, Tuple
 
 import numpy as np
 

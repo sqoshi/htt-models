@@ -1,203 +1,158 @@
 """Data loaders for different model types."""
 
-import logging
 import os
-import random
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, Optional, Tuple, Union
 
-import numpy as np
 import torch
-from torch.utils.data import DataLoader, Dataset, Subset, random_split
+from torch.utils.data import DataLoader, Dataset, TensorDataset, random_split
+from torchvision import transforms
 
 from httmodels.dataloaders.landmarkstransformers import HandLandmarkTransformer
 
 
-def _get_sample_indices(dataset, sample_ratio):
-    """Get indices for a sampled subset of data.
+def get_dataloader(
+    dataset: Union[Dataset, Tuple[torch.Tensor, torch.Tensor]],
+    batch_size: int = 32,
+    shuffle: bool = True,
+    num_workers: Optional[int] = None,
+) -> DataLoader:
+    """Create a PyTorch DataLoader from a dataset or tensor data.
 
     Args:
-        dataset: Dataset to sample from
-        sample_ratio: Ratio of data to use
+        dataset: PyTorch Dataset or tuple of (X, y) tensors
+        batch_size: Batch size for the data loader
+        shuffle: Whether to shuffle the data
+        num_workers: Number of worker processes for loading data
 
     Returns:
-        List of indices
+        PyTorch DataLoader
     """
-    total_samples = len(dataset)
-    sample_size = int(total_samples * sample_ratio)
-    return random.sample(range(total_samples), sample_size)
+    # Set number of workers if not specified
+    if num_workers is None:
+        num_workers = min(os.cpu_count() or 1, 4)
+
+    # Handle tensor inputs by creating a TensorDataset
+    if isinstance(dataset, tuple) and len(dataset) == 2:
+        X, y = dataset
+        if not torch.is_tensor(X):
+            X = torch.tensor(X, dtype=torch.float32)
+        if not torch.is_tensor(y):
+            y = torch.tensor(y, dtype=torch.long)
+        dataset = TensorDataset(X, y)
+
+    # Create and return DataLoader
+    return DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        num_workers=num_workers,
+    )
 
 
-class PyTorchDataLoader:
-    """Data loader for PyTorch models."""
+def split_dataset(
+    dataset: Dataset, train_ratio: float = 0.8, seed: int = 42
+) -> Tuple[Dataset, Dataset]:
+    """Split a dataset into training and validation sets.
 
-    @staticmethod
-    def create_dataloaders(
-        dataset: Dataset,
-        batch_size: int = 32,
-        train_ratio: float = 0.8,
-        shuffle: bool = True,
-        num_workers: Optional[int] = None,
-        seed: int = 42,
-    ) -> Tuple[DataLoader, DataLoader]:
-        """Create train and validation dataloaders from a dataset.
+    Args:
+        dataset: PyTorch Dataset to split
+        train_ratio: Ratio of data to use for training
+        seed: Random seed for reproducibility
 
-        Args:
-            dataset: PyTorch dataset
-            batch_size: Batch size for dataloaders
-            train_ratio: Ratio of data to use for training
-            shuffle: Whether to shuffle the data
-            num_workers: Number of workers for dataloaders
-            seed: Random seed for reproducibility
+    Returns:
+        Tuple of (train_dataset, val_dataset)
+    """
+    # Set random seed for reproducibility
+    torch.manual_seed(seed)
 
-        Returns:
-            Tuple of (train_dataloader, val_dataloader)
-        """
-        # Set random seed for reproducibility
-        torch.manual_seed(seed)
+    # Calculate sizes
+    train_size = int(train_ratio * len(dataset))
+    val_size = len(dataset) - train_size
 
-        # Calculate sizes
-        train_size = int(train_ratio * len(dataset))
-        val_size = len(dataset) - train_size
-
-        # Set number of workers
-        if num_workers is None:
-            num_workers = os.cpu_count() or 4
-
-        # Split dataset
-        train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
-
-        # Create dataloaders
-        train_loader = DataLoader(
-            train_dataset,
-            batch_size=batch_size,
-            shuffle=shuffle,
-            num_workers=num_workers,
-        )
-
-        val_loader = DataLoader(
-            val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers
-        )
-
-        return train_loader, val_loader
+    # Split dataset
+    return random_split(dataset, [train_size, val_size])
 
 
-class MLDataLoader(DataLoader):
-    """Data loader for machine learning models."""
+def create_train_val_dataloaders(
+    dataset: Dataset,
+    batch_size: int = 32,
+    train_ratio: float = 0.8,
+    shuffle: bool = True,
+    num_workers: Optional[int] = None,
+    seed: int = 42,
+) -> Tuple[DataLoader, DataLoader]:
+    """Create train and validation dataloaders from a dataset.
 
-    def __init__(
-        self,
-        dataset: Dataset,
-        batch_size: int = 32,
-        shuffle: bool = True,
-        sample_ratio: float = 1.0,
-        augmentation: bool = False,
-        num_workers: Optional[int] = None,
-    ):
-        """Initialize ML data loader.
+    Args:
+        dataset: PyTorch Dataset
+        batch_size: Batch size for dataloaders
+        train_ratio: Ratio of data to use for training
+        shuffle: Whether to shuffle the training data
+        num_workers: Number of workers for dataloaders
+        seed: Random seed for reproducibility
 
-        Args:
-            dataset: PyTorch dataset
-            batch_size: Batch size for data loading
-            shuffle: Whether to shuffle the data
-            sample_ratio: Ratio of data to use
-            augmentation: Whether to apply data augmentation
-            num_workers: Number of workers for data loading
-        """
-        self.augmentation = augmentation
-        self.transformer = HandLandmarkTransformer() if augmentation else None
+    Returns:
+        Tuple of (train_dataloader, val_dataloader)
+    """
+    train_dataset, val_dataset = split_dataset(dataset, train_ratio, seed)
 
-        # Set number of workers
-        if num_workers is None:
-            num_workers = os.cpu_count() or 4
+    train_loader = get_dataloader(
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        num_workers=num_workers,
+    )
 
-        # Sample subset of data if needed
-        sampled_dataset = (
-            Subset(dataset, _get_sample_indices(dataset, sample_ratio))
-            if sample_ratio < 1.0
-            else dataset
-        )
+    val_loader = get_dataloader(
+        val_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+    )
 
-        super().__init__(
-            sampled_dataset,
-            batch_size=batch_size,
-            shuffle=shuffle,
-            num_workers=num_workers,
-        )
-
-    def __iter__(self):
-        """Iterate over batches of data.
-
-        Yields:
-            Tuple of (X_batch, y_batch)
-        """
-        for image, label in super().__iter__():
-            if self.augmentation and self.transformer:
-                landmarks = self.transformer.transform(image)
-                if landmarks:
-                    yield landmarks, np.int32(label)
-                else:
-                    continue
-            else:
-                yield image, label
+    return train_loader, val_loader
 
 
-class LeNetDataLoader(DataLoader):
+# Transformation factories for different model types
+def get_mnist_transforms(augmentation: bool = False) -> Callable:
+    """Get transformations for MNIST dataset.
 
-    def __init__(
-        self, dataset, batch_size=32, shuffle=True, augmentation=True, sample_ratio=1.0
-    ):
-        self.augmentation = augmentation
-        sampled_dataset = (
-            torch.utils.data.Subset(dataset, _get_sample_indices(dataset, sample_ratio))
-            if sample_ratio < 1.0
-            else dataset
-        )
-        super().__init__(
-            sampled_dataset,
-            batch_size=batch_size,
-            shuffle=shuffle,
-            num_workers=os.cpu_count(),
-        )
+    Args:
+        augmentation: Whether to apply data augmentation
 
-        base_transforms = [
-            transforms.Grayscale(num_output_channels=1),
-            transforms.Resize((28, 28)),
-            transforms.ToTensor(),
-            transforms.Normalize([0.5], [0.5]),
+    Returns:
+        Composed transforms
+    """
+    base_transforms = [
+        transforms.ToTensor(),
+        transforms.Normalize([0.5], [0.5]),
+    ]
+
+    if augmentation:
+        aug_transforms = [
+            transforms.RandomRotation(15),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomAffine(degrees=0, translate=(0.1, 0.1)),
         ]
+        return transforms.Compose(aug_transforms + base_transforms)
 
-        if augmentation:
-            aug_transforms = [
-                transforms.RandomRotation(15),
-                transforms.RandomHorizontalFlip(),
-            ]
-            self.transform = transforms.Compose(aug_transforms + base_transforms)
-        else:
-            self.transform = transforms.Compose(base_transforms)
-
-    def __iter__(self):
-        for image, label in super().__iter__():
-            image = self.transform(image)
-            yield image, label
+    return transforms.Compose(base_transforms)
 
 
-class ResNetDataLoader(DataLoader):
-    def __init__(
-        self, dataset, batch_size=32, shuffle=True, augmentation=True, sample_ratio=1.0
-    ):
-        self.augmentation = augmentation
-        sampled_dataset = (
-            torch.utils.data.Subset(dataset, _get_sample_indices(dataset, sample_ratio))
-            if sample_ratio < 1.0
-            else dataset
-        )
-        super().__init__(
-            sampled_dataset,
-            batch_size=batch_size,
-            shuffle=shuffle,
-            num_workers=os.cpu_count(),
-        )
+def get_asl_transforms(
+    model_type: str = "resnet", augmentation: bool = False
+) -> Callable:
+    """Get transformations for ASL hands dataset.
 
+    Args:
+        model_type: Type of model to create transforms for ("resnet" or "lenet")
+        augmentation: Whether to apply data augmentation
+
+    Returns:
+        Composed transforms
+    """
+    if model_type.lower() == "resnet":
+        # ResNet expects 3 channels and 224x224 images
         base_transforms = [
             transforms.Resize((224, 224)),
             transforms.ToTensor(),
@@ -212,11 +167,33 @@ class ResNetDataLoader(DataLoader):
                     brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1
                 ),
             ]
-            self.transform = transforms.Compose(aug_transforms + base_transforms)
-        else:
-            self.transform = transforms.Compose(base_transforms)
+            return transforms.Compose(aug_transforms + base_transforms)
 
-    def __iter__(self):
-        for image, label in super().__iter__():
-            image = self.transform(image)
-            yield image, label
+        return transforms.Compose(base_transforms)
+
+    else:  # LeNet or default
+        # LeNet expects 1 channel and 28x28 images
+        base_transforms = [
+            transforms.Grayscale(num_output_channels=1),
+            transforms.Resize((28, 28)),
+            transforms.ToTensor(),
+            transforms.Normalize([0.5], [0.5]),
+        ]
+
+        if augmentation:
+            aug_transforms = [
+                transforms.RandomRotation(15),
+                transforms.RandomHorizontalFlip(),
+            ]
+            return transforms.Compose(aug_transforms + base_transforms)
+
+        return transforms.Compose(base_transforms)
+
+
+def get_hand_landmark_transforms() -> HandLandmarkTransformer:
+    """Get a transformer for extracting hand landmarks.
+
+    Returns:
+        HandLandmarkTransformer instance
+    """
+    return HandLandmarkTransformer()
