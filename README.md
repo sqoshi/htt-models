@@ -17,7 +17,7 @@
 <h3 align="center">htt-models</h3>
 
   <p align="center">
-    Python package designed to train models and process data.
+    Python package designed to train models and process data for hand gesture recognition.
     <br />
     <a href="https://github.com/sqoshi/htt-models"><strong>Explore the docs »</strong></a>
     <br />
@@ -37,6 +37,7 @@
     <li><a href="#built-with">Built With</a></li>
     <li><a href="#getting-started">Getting Started</a></li>
     <li><a href="#usage">Usage</a></li>
+    <li><a href="#project-structure">Project Structure</a></li>
     <li><a href="#roadmap">Roadmap</a></li>
   </ol>
 </details>
@@ -48,6 +49,109 @@ The htt-models package facilitates the training, processing, and versioning of m
 This package enables training models on hand gesture datasets such as MNIST and ASL Hands, providing state-of-the-art recognition of American Sign Language (ASL) letters. It includes multiple model implementations to ensure flexibility and robustness in recognition accuracy.
 
 Additionally, trained models are packaged as pre-built Docker images, allowing seamless deployment across different environments, ensuring portability and ease of use.
+
+## Built With
+
+* [PyTorch](https://pytorch.org/) - Deep learning framework
+* [scikit-learn](https://scikit-learn.org/) - Machine learning library
+* [OpenCV](https://opencv.org/) - Computer vision library
+* [MediaPipe](https://mediapipe.dev/) - Hand landmark detection
+* [Poetry](https://python-poetry.org/) - Dependency management
+
+## Getting Started
+
+To get a local copy up and running, follow these steps:
+
+### Prerequisites
+
+* Python 3.10+
+* Poetry
+
+### Installation
+
+1. Clone the repository
+   ```sh
+   git clone https://github.com/sqoshi/htt-models.git
+   cd htt-models
+   ```
+
+2. Install dependencies
+   ```sh
+   poetry install
+   ```
+
+3. Download datasets
+   ```sh
+   mkdir -p data/mnist
+   # Download MNIST dataset (will be downloaded automatically when first needed)
+
+   # For ASL dataset, download from source and place in appropriate directory
+   # or use existing dataset path with --data-path option
+   ```
+
+## Usage
+
+The package provides a simple command-line interface for training and evaluating models:
+
+```sh
+# Train all models on all datasets
+python run.py --model all --dataset all
+
+# Train specific model on specific dataset
+python run.py --model lenet --dataset mnist --epochs 10 --batch-size 64
+
+# Train ResNet on ASL dataset with custom data path
+python run.py --model resnet --dataset asl --data-path /path/to/asl/dataset --epochs 15
+
+# Train Random Forest on ASL dataset
+python run.py --model rf --dataset asl --n-estimators 100
+```
+
+## Project Structure
+
+```
+httmodels/
+├── config.py                  # Configuration settings
+├── models/                    # Model implementations
+│   ├── base.py                # Base model interfaces
+│   ├── lenet.py               # LeNet CNN model
+│   ├── resnet.py              # ResNet model
+│   ├── random_forest.py       # Random Forest model
+│   └── adaboost.py            # AdaBoost model
+├── trainers/                  # Model trainers
+│   ├── base.py                # Base trainer interfaces
+│   ├── lenet.py               # LeNet trainer
+│   ├── resnet.py              # ResNet trainer
+│   ├── rf.py                  # Random Forest trainer
+│   ├── adaboost.py            # AdaBoost trainer
+│   └── context.py             # Training context
+├── preprocessing/             # Data preprocessing
+│   ├── base.py                # Base preprocessor interfaces
+│   ├── mnist.py               # MNIST dataset preprocessor
+│   └── aslhands.py            # ASL hands dataset preprocessor
+├── datasets/                  # Dataset classes
+│   ├── mnist_asl.py           # MNIST and ASL dataset classes
+│   └── ...
+├── dataloaders/               # Data loaders
+│   ├── loaders.py             # PyTorch and ML data loaders
+│   └── ...
+└── utils/                     # Utility functions
+    ├── common.py              # Common utility functions
+    └── ...
+```
+
+## Roadmap
+
+- [x] Base model and trainer interfaces
+- [x] CNN models (LeNet, ResNet)
+- [x] ML models (Random Forest, AdaBoost)
+- [x] Data preprocessing for MNIST and ASL
+- [ ] Add support for more datasets
+- [ ] Implement more model architectures
+- [ ] Add model serving capabilities
+- [ ] Improve documentation and examples
+
+See the [open issues](https://github.com/sqoshi/htt-models/issues) for a full list of proposed features and known issues.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
